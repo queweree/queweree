@@ -3,10 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ЛР 1: XYZ - LAB - HLS</title>
+    <title>ЛР 1: XYZ ↔ LAB ↔ HLS</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <script src="script.js"></script>
+<div class="app" id="app">
+    <h1>🌐 Цветовые модели: XYZ ↔ LAB ↔ HLS</h1>
+
+    <div class="controls">
+        <label>Стандарт освещения:
+            <select id="illuminantSelect">
+                <option value="D65">D65</option>
+                <option value="D50">D50</option>
+                <option value="E">E</option>
+            </select>
+        </label>
+        <label>Стратегия при выходе за границы:
+            <select id="clampStrategy">
+                <option value="clip">Clipping (обрезание)</option>
+                <option value="scale">Scaling (масштабирование)</option>
+            </select>
+        </label>
+        <label>Выбрать цвет (RGB):
+            <input type="color" id="colorPicker" value="#ff0000">
+        </label>
+    </div>
+
+    <div class="models">
+        <!-- XYZ -->
+        <div class="model-card" id="xyzCard">
+            <h3>XYZ</h3>
+            <div class="param" data-model="xyz" data-component="X">
+                <label>X</label>
+                <div class="row">
+                    <input type="range" min="0" max="100" step="0.01" value="41.24">
+                    <input type="number" step="0.01" value="41.24">
+                </div>
+                <canvas class="gradient-canvas" width="200" height="10"></canvas>
+            </div>
+            <div class="param" data-model="xyz" data-component="Y">
+                <label>Y</label>
+                <div class="row">
+                    <input type="range" min="0" max="100" step="0.01" value="21.26">
+                    <input type="number" step="0.01" value="21.26">
+                </div>
+                <canvas class="gradient-canvas" width="200" height="10"></canvas>
+            </div>
+            <div class="param" data-model="xyz" data-component="Z">
+                <label>Z</label>
+                <div class="row">
+                    <input type="range" min="0" max="110" step="0.01" value="1.93">
+                    <input type="number" step="0.01" value="1.93">
+                </div>
+                <canvas class="gradient-canvas" width="200" height="10"></canvas>
+            </div>
+        </div>
+
+        <!-- LAB -->
+        <div class="model-card" id="labCard">
+            <h3>LAB</h3>
+            <div class="param" data-model="lab" data-component="L">
+                <label>L</label>
+                <div class="row">
+                    <input type="range" min="0" max="100" step="0.01" value="53.24">
+                    <input type="number" step="0.01" value="53.24">
+                </div>
+                <canvas class="gradient-canvas" width="200" height="10"></canvas>
+            </div>
+            <div class="param" data-model="lab" data-component="a">
+                <label>a</label>
+                <div class="row">
+                    <input type="range" min="-128" max="127" step="0.01" value="80.09">
+                    <input type="number" step="0.01" value="80.09">
+                </div>
+                <canvas class="gradient-canvas" width="200" height="10"></canvas>
+            </div>
+            <div class="param" data-model="lab" data-component="b">
+                <label>b</label>
+                <div class="row">
+                    <input type="range" min="-128" max="127" step="0.01" value="67.20">
+                    <input type="number" step="0.01" value="67.20">
+                </div>
+                <canvas class="gradient-canvas" width="200" height="10"></canvas>
+            </div>
+        </div>
+
+        <!-- HSL -->
+        <div class="model-card" id="hslCard">
+            <h3>HSL</h3>
+            <div class="param" data-model="hsl" data-component="H">
+                <label>H (град)</label>
+                <div class="row">
+                    <input type="range" min="0" max="360" step="0.1" value="0">
+                    <input type="number" step="0.1" value="0">
+                </div>
+                <canvas class="gradient-canvas" width="200" height="10"></canvas>
+            </div>
+            <div class="param" data-model="hsl" data-component="S">
+                <label>S (0–1)</label>
+                <div class="row">
+                    <input type="range" min="0" max="1" step="0.001" value="1">
+                    <input type="number" step="0.001" value="1">
+                </div>
+                <canvas class="gradient-canvas" width="200" height="10"></canvas>
+            </div>
+            <div class="param" data-model="hsl" data-component="L">
+                <label>L (0–1)</label>
+                <div class="row">
+                    <input type="range" min="0" max="1" step="0.001" value="0.5">
+                    <input type="number" step="0.001" value="0.5">
+                </div>
+                <canvas class="gradient-canvas" width="200" height="10"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="color-preview" id="colorPreview" style="background: #ff0000;"></div>
+    <div class="warning" id="warningMessage">⚠️ Предупреждений нет</div>
+
+    <div class="test-results" id="testResults">Запуск автотестов...</div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
