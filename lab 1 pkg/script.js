@@ -187,3 +187,39 @@ const Model = (() => {
         rgbToHex
     };
 })();
+function runTests() {
+    const results = [];
+    const assert = (cond, msg) => {
+        results.push({ ok: cond, msg });
+    };
+
+    const dataD65 = Model.getIlluminantData('D65');
+    const xyz1 = Model.rgbToXyz(255,0,0, dataD65.rgb2xyz);
+    assert(Math.abs(xyz1.X - 41.2456) < 0.01 && Math.abs(xyz1.Y - 21.2673) < 0.01 && Math.abs(xyz1.Z - 1.9334) < 0.01,
+        'RGB(255,0,0) -> XYZ (D65) совпадает с эталоном');
+    const lab1 = Model.xyzToLab(xyz1.X, xyz1.Y, xyz1.Z, dataD65.white);
+    assert(Math.abs(lab1.L - 53.2408) < 0.02 && Math.abs(lab1.a - 80.0925) < 0.02 && Math.abs(lab1.b - 67.2032) < 0.02,
+        'XYZ -> LAB (D65) совпадает с эталоном для красного');
+    const rgbBack = Model.xyzToRgb(xyz1.X, xyz1.Y, xyz1.Z, dataD65.xyz2rgb, 'clip');
+    assert(Math.abs(rgbBack.r - 255) < 0.5 && Math.abs(rgbBack.g) < 0.5 && Math.abs(rgbBack.b) < 0.5,
+        'RGB(255,0,0) -> XYZ -> RGB (D65, clip) даёт исходный');
+    const xyz2 = Model.labToXyz(lab1.L, lab1.a, lab1.b, dataD65.white);
+    assert(Math.abs(xyz2.X - xyz1.X) < 0.1 && Math.abs(xyz2.Y - xyz1.Y) < 0.1 && Math.abs(xyz2.Z - xyz1.Z) < 0.1,
+        'XYZ -> LAB -> XYZ (D65) даёт исходный (погрешность <0.1)');
+    const hsl1 = Model.rgbToHsl(255,0,0);
+    const rgb3 = Model.hslToRgb(hsl1.h, hsl1.s, hsl1.l);
+    assert(Math.abs(rgb3.r - 255) < 0.5 && Math.abs(rgb3.g) < 0.5 && Math.abs(rgb3.b) < 0.5,
+        'RGB(255,0,0) -> HSL -> RGB даёт исходный');
+ const dataD50 = Model.getIlluminantData('D50');
+    const xyzWhite = Model.rgbToXyz(255,255,255, dataD50.rgb2xyz);
+    const rgbBackWhite = Model.xyzToRgb(xyzWhite.X, xyzWhite.Y, xyzWhite.Z, dataD50.xyz2rgb, 'clip');
+    assert(Math.abs(rgbBackWhite.r - 255) < 0.5 && Math.abs(rgbBackWhite.g - 255) < 0.5 && Math.abs(rgbBackWhite.b - 255) < 0.5,
+        'RGB(255,255,255) -> XYZ (D50) -> RGB (D50, clip) даёт исходный');
+    const rgbScale = Model.xyzToRgb(100,100,100, dataD65.xyz2rgb, 'scale');
+    assert(rgbScale.r >= 0 && rgbScale.r <= 255 && rgbScale.g >= 0 && rgbScale.g <= 255 && rgbScale.b >= 0 && rgbScale.b <= 255,
+        'Масштабирование приводит все каналы в [0,255]');
+    const rgbScale2 = Model.xyzToRgb(200, 50, 50, dataD65.xyz2rgb, 'scale');
+    assert(rgbScale2.clipped === true,
+        'Масштабирование помечает clipped=true при выходе за границы');
+    return results;
+}
