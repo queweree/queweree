@@ -223,3 +223,34 @@ function runTests() {
         'Масштабирование помечает clipped=true при выходе за границы');
     return results;
 }
+class ColorApp {
+    constructor() {
+        this.testResultsDiv = document.getElementById('testResults');
+        this.colorPreview = document.getElementById('colorPreview');
+        this.state = {
+            rgb: { r: 255, g: 0, b: 0 },
+            xyz: { X: 41.24, Y: 21.26, Z: 1.93 },
+            lab: { L: 53.24, a: 80.09, b: 67.20 },
+            hsl: { h: 0, s: 1, l: 0.5 }
+        };
+        this.runTests();
+        this.colorPreview.style.background = '#ff0000';
+    }
+
+    runTests() {
+        const results = runTests();
+        let output = '🔬 Результаты автотестов:\n';
+        let allOk = true;
+        results.forEach((res, i) => {
+            const mark = res.ok ? '✅' : '❌';
+            output += `${mark} Тест ${i+1}: ${res.msg}\n`;
+            if (!res.ok) allOk = false;
+        });
+        output += allOk ? '\n✅ Все тесты пройдены!' : '\n❌ Есть ошибки!';
+        this.testResultsDiv.textContent = output;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.app = new ColorApp();
+});
