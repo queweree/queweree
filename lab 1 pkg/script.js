@@ -227,16 +227,21 @@ class ColorApp {
     constructor() {
         this.testResultsDiv = document.getElementById('testResults');
         this.colorPreview = document.getElementById('colorPreview');
+        this.illuminantSelect = document.getElementById('illuminantSelect');
+        this.strategySelect = document.getElementById('clampStrategy');
+        this.colorPicker = document.getElementById('colorPicker');
         this.state = {
             rgb: { r: 255, g: 0, b: 0 },
             xyz: { X: 41.24, Y: 21.26, Z: 1.93 },
             lab: { L: 53.24, a: 80.09, b: 67.20 },
             hsl: { h: 0, s: 1, l: 0.5 }
         };
-        this.runTests();
-        this.colorPreview.style.background = '#ff0000';
         this.sliders = {};
         this.numberInputs = {};
+        
+        this.runTests();
+        this.colorPreview.style.background = '#ff0000';
+        
         document.querySelectorAll('.param').forEach(el => {
             const model = el.dataset.model;
             const comp = el.dataset.component;
@@ -245,6 +250,7 @@ class ColorApp {
             const key = model + '.' + comp;
             this.sliders[key] = slider;
             this.numberInputs[key] = number;
+            
             slider.addEventListener('input', () => {
                 number.value = slider.value;
                 this.onParamChange(model, comp, parseFloat(slider.value));
@@ -261,6 +267,8 @@ class ColorApp {
                 this.onParamChange(model, comp, val);
             });
         });
+        
+        this.setFromRgb(255, 0, 0, 'init');
     }
 
     runTests() {
@@ -272,14 +280,95 @@ class ColorApp {
             output += `${mark} Тест ${i+1}: ${res.msg}\n`;
             if (!res.ok) allOk = false;
         });
-        output += allOk ? '\n Все тесты пройдены!' : '\n Есть ошибки!';
+        output += allOk ? '\nВсе тесты пройдены!' : '\nЕсть ошибки!';
         this.testResultsDiv.textContent = output;
     }
+
+    fullUpdate() {
+        const { r, g, b } = this.state.rgb;
+        this.setFromRgb(r, g, b, 'fullUpdate');
+    }
+
+    setFromRgb(r, g, b, source, sourceClipped = false) {
+        const illuminant = this.illuminantSelect.value;
+        const strategy = this.strategySelect.value;
+        const data = Model.getIlluminantData(illuminant);
+
+        const xyz = Model.rgbToXyz(r, g, b, data.rgb2xyz);
+        const lab = Model.xyzToLab(xyz.X, xyz.Y, xyz.Z, data.white);
+        const rgbBack = Model.xyzToRgb(xyz.X, xyz.Y, xyz.Z, data.xyz2rgb, strategy);
+        const hsl = Model.rgbToHsl(rgbBack.r, rgbBack.g, rgbBack.b);
+
+        this.state.rgb = { r: rgbBack.r, g: rgbBack.g, b: rgbBack.b };
+        this.state.xyz = xyz;
+        this.state.lab = lab;
+        this.state.hsl = hsl;
+        this.lastClipped = sourceClipped || rgbBack.clipped;
+
+        this.updateUI(source);
+    }
+
+    updateUI(source) {
+        const { r, g, b } = this.state.rgb;
+        const { X, Y, Z } = this.state.xyz;
+        const { L, a, b: blab } = this.state.lab;
+        const { h, s, l } = this.state.hsl;
+
+        const setParam = (model, comp, val) => {
+            const key = model + '.' + comp;
+            if (this.sliders[key]) {
+                this.sliders[key].value = val;
+                this.numberInputs[key].value = val;
+            }
+        };
+        setParam('xyz', 'X', X);
+        setParam('xyz', 'Y', Y);
+        setParam('xyz', 'Z', Z);
+        setParam('lab', 'L', L);
+        setParam('lab', 'a', a);
+        setParam('lab', 'b', blab);
+        setParam('hsl', 'H', h);
+        setParam('hsl', 'S', s);
+        setParam('hsl', 'L', l);
+
+        if (source !== 'picker') {
+            const hex = Model.rgbToHex(r, g, b);
+            this.colorPicker.value = hex;
+        }
+        this.colorPreview.style.background = Model.rgbToHex(r, g, b);
+    }
+
     onParamChange(model, comp, value) {
-        console.log(`Изменение: ${model}.${comp} = ${value}`);
+        const illuminant = this.illuminantSelect.value;
+        const strategy = this.strategySelect.value;
+        const data = Model.getIlluminantData(illuminant);
+
+        let newRgb;
+        if (model === 'xyz') {
+            const x = (comp === 'X') ? value : this.state.xyz.X;
+            const y = (comp === 'Y') ? value : this.state.xyz.Y;
+            const z = (comp === 'Z') ? value : this.state.xyz.Z;
+            const rgbRes = Model.xyzToRgb(x, y, z, data.xyz2rgb, strategy);
+            newRgb = { r: rgbRes.r, g: rgbRes.g, b: rgbRes.b };
+        } else if (model === 'lab') {
+            const L = (comp === 'L') ? value : this.state.lab.L;
+            const a = (comp === 'a') ? value : this.state.lab.a;
+            const b = (comp === 'b') ? value : this.state.lab.b;
+            const xyz2 = Model.labToXyz(L, a, b, data.white);
+            const rgbRes = Model.xyzToRgb(xyz2.X, xyz2.Y, xyz2.Z, data.xyz2rgb, strategy);
+            newRgb = { r: rgbRes.r, g: rgbRes.g, b: rgbRes.b };
+        } else if (model === 'hsl') {
+            const h = (comp === 'H') ? value : this.state.hsl.h;
+            const s = (comp === 'S') ? value : this.state.hsl.s;
+            const l = (comp === 'L') ? value : this.state.hsl.l;
+            const rgb2 = Model.hslToRgb(h, s, l);
+            newRgb = { r: rgb2.r, g: rgb2.g, b: rgb2.b };
+        } else {
+            return;
+        }
+        this.setFromRgb(newRgb.r, newRgb.g, newRgb.b, 'param', newRgb.clipped === true);
     }
 }
-
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new ColorApp();
 });
