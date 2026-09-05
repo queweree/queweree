@@ -245,6 +245,7 @@ class ColorApp {
         this.illuminantSelect = document.getElementById('illuminantSelect');
         this.strategySelect = document.getElementById('clampStrategy');
         this.colorPicker = document.getElementById('colorPicker');
+        this.warningDiv = document.getElementById('warningMessage');
         
         this.state = {
             rgb: { r: 255, g: 0, b: 0 },
@@ -253,6 +254,7 @@ class ColorApp {
             hsl: { h: 0, s: 1, l: 0.5 }
         };
         
+        this.lastClipped = false;
         this.sliders = {};
         this.numberInputs = {};
         this.gradientCanvases = {};
@@ -291,6 +293,7 @@ class ColorApp {
         
         this.setFromRgb(255, 0, 0, 'init');
         this.updateGradients();
+        this.updateWarning();
     }
 
     runTests() {
@@ -328,6 +331,7 @@ class ColorApp {
         this.lastClipped = sourceClipped || rgbBack.clipped;
 
         this.updateUI(source);
+        this.updateWarning();
     }
 
     updateUI(source) {
@@ -463,6 +467,14 @@ class ColorApp {
                 ctx.putImageData(imageData, 0, 0);
             });
         });
+    }
+
+    updateWarning() {
+        if (this.lastClipped) {
+            this.warningDiv.textContent = '⚠️ Внимание: произошло обрезание или масштабирование цветов для соответствия допустимому диапазону RGB.';
+        } else {
+            this.warningDiv.textContent = '✅ Все цвета в допустимых пределах.';
+        }
     }
 }
 document.addEventListener('DOMContentLoaded', () => {
