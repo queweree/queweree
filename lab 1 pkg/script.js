@@ -235,6 +235,32 @@ class ColorApp {
         };
         this.runTests();
         this.colorPreview.style.background = '#ff0000';
+        this.sliders = {};
+        this.numberInputs = {};
+        document.querySelectorAll('.param').forEach(el => {
+            const model = el.dataset.model;
+            const comp = el.dataset.component;
+            const slider = el.querySelector('input[type="range"]');
+            const number = el.querySelector('input[type="number"]');
+            const key = model + '.' + comp;
+            this.sliders[key] = slider;
+            this.numberInputs[key] = number;
+            slider.addEventListener('input', () => {
+                number.value = slider.value;
+                this.onParamChange(model, comp, parseFloat(slider.value));
+            });
+
+            number.addEventListener('input', () => {
+                let val = parseFloat(number.value);
+                if (isNaN(val)) return;
+                const min = parseFloat(slider.min);
+                const max = parseFloat(slider.max);
+                if (val < min) val = min;
+                if (val > max) val = max;
+                slider.value = val;
+                this.onParamChange(model, comp, val);
+            });
+        });
     }
 
     runTests() {
@@ -242,12 +268,15 @@ class ColorApp {
         let output = '🔬 Результаты автотестов:\n';
         let allOk = true;
         results.forEach((res, i) => {
-            const mark = res.ok ? '✅' : '❌';
+            const mark = res.ok ? 'OK' : 'BAD';
             output += `${mark} Тест ${i+1}: ${res.msg}\n`;
             if (!res.ok) allOk = false;
         });
-        output += allOk ? '\n✅ Все тесты пройдены!' : '\n❌ Есть ошибки!';
+        output += allOk ? '\n Все тесты пройдены!' : '\n Есть ошибки!';
         this.testResultsDiv.textContent = output;
+    }
+    onParamChange(model, comp, value) {
+        console.log(`Изменение: ${model}.${comp} = ${value}`);
     }
 }
 
