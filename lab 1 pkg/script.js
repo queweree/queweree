@@ -194,30 +194,45 @@ function runTests() {
     };
 
     const dataD65 = Model.getIlluminantData('D65');
+    // Тест 1: эталонные координаты красного sRGB для D65.
     const xyz1 = Model.rgbToXyz(255,0,0, dataD65.rgb2xyz);
     assert(Math.abs(xyz1.X - 41.2456) < 0.01 && Math.abs(xyz1.Y - 21.2673) < 0.01 && Math.abs(xyz1.Z - 1.9334) < 0.01,
         'RGB(255,0,0) -> XYZ (D65) совпадает с эталоном');
+
+    // Тест 2: эталонные координаты LAB красного для D65.
     const lab1 = Model.xyzToLab(xyz1.X, xyz1.Y, xyz1.Z, dataD65.white);
     assert(Math.abs(lab1.L - 53.2408) < 0.02 && Math.abs(lab1.a - 80.0925) < 0.02 && Math.abs(lab1.b - 67.2032) < 0.02,
         'XYZ -> LAB (D65) совпадает с эталоном для красного');
+
+    // Тест 3: RGB(255,0,0) -> XYZ -> RGB (D65, clip)
     const rgbBack = Model.xyzToRgb(xyz1.X, xyz1.Y, xyz1.Z, dataD65.xyz2rgb, 'clip');
     assert(Math.abs(rgbBack.r - 255) < 0.5 && Math.abs(rgbBack.g) < 0.5 && Math.abs(rgbBack.b) < 0.5,
         'RGB(255,0,0) -> XYZ -> RGB (D65, clip) даёт исходный');
+
+    // Тест 4: XYZ -> LAB -> XYZ (D65)
     const xyz2 = Model.labToXyz(lab1.L, lab1.a, lab1.b, dataD65.white);
     assert(Math.abs(xyz2.X - xyz1.X) < 0.1 && Math.abs(xyz2.Y - xyz1.Y) < 0.1 && Math.abs(xyz2.Z - xyz1.Z) < 0.1,
         'XYZ -> LAB -> XYZ (D65) даёт исходный (погрешность <0.1)');
+
+    // Тест 5: RGB -> HSL -> RGB (красный)
     const hsl1 = Model.rgbToHsl(255,0,0);
     const rgb3 = Model.hslToRgb(hsl1.h, hsl1.s, hsl1.l);
     assert(Math.abs(rgb3.r - 255) < 0.5 && Math.abs(rgb3.g) < 0.5 && Math.abs(rgb3.b) < 0.5,
         'RGB(255,0,0) -> HSL -> RGB даёт исходный');
- const dataD50 = Model.getIlluminantData('D50');
+
+    // Тест 6: обратимость для белого при D50 (проверка согласованности матриц)
+    const dataD50 = Model.getIlluminantData('D50');
     const xyzWhite = Model.rgbToXyz(255,255,255, dataD50.rgb2xyz);
     const rgbBackWhite = Model.xyzToRgb(xyzWhite.X, xyzWhite.Y, xyzWhite.Z, dataD50.xyz2rgb, 'clip');
     assert(Math.abs(rgbBackWhite.r - 255) < 0.5 && Math.abs(rgbBackWhite.g - 255) < 0.5 && Math.abs(rgbBackWhite.b - 255) < 0.5,
         'RGB(255,255,255) -> XYZ (D50) -> RGB (D50, clip) даёт исходный');
+
+    // Тест 7: стратегия scaling — все каналы в [0,255]
     const rgbScale = Model.xyzToRgb(100,100,100, dataD65.xyz2rgb, 'scale');
     assert(rgbScale.r >= 0 && rgbScale.r <= 255 && rgbScale.g >= 0 && rgbScale.g <= 255 && rgbScale.b >= 0 && rgbScale.b <= 255,
         'Масштабирование приводит все каналы в [0,255]');
+
+    // Тест 8: масштабирование помечает clipped=true
     const rgbScale2 = Model.xyzToRgb(200, 50, 50, dataD65.xyz2rgb, 'scale');
     assert(rgbScale2.clipped === true,
         'Масштабирование помечает clipped=true при выходе за границы');
@@ -230,14 +245,17 @@ class ColorApp {
         this.illuminantSelect = document.getElementById('illuminantSelect');
         this.strategySelect = document.getElementById('clampStrategy');
         this.colorPicker = document.getElementById('colorPicker');
+        
         this.state = {
             rgb: { r: 255, g: 0, b: 0 },
             xyz: { X: 41.24, Y: 21.26, Z: 1.93 },
             lab: { L: 53.24, a: 80.09, b: 67.20 },
             hsl: { h: 0, s: 1, l: 0.5 }
         };
+        
         this.sliders = {};
         this.numberInputs = {};
+        this.gradientCanvases = {};
         
         this.runTests();
         this.colorPreview.style.background = '#ff0000';
@@ -247,9 +265,12 @@ class ColorApp {
             const comp = el.dataset.component;
             const slider = el.querySelector('input[type="range"]');
             const number = el.querySelector('input[type="number"]');
+            const canvas = el.querySelector('canvas');
             const key = model + '.' + comp;
+            
             this.sliders[key] = slider;
             this.numberInputs[key] = number;
+            this.gradientCanvases[key] = canvas;
             
             slider.addEventListener('input', () => {
                 number.value = slider.value;
@@ -269,6 +290,7 @@ class ColorApp {
         });
         
         this.setFromRgb(255, 0, 0, 'init');
+        this.updateGradients();
     }
 
     runTests() {
@@ -276,11 +298,11 @@ class ColorApp {
         let output = '🔬 Результаты автотестов:\n';
         let allOk = true;
         results.forEach((res, i) => {
-            const mark = res.ok ? 'OK' : 'BAD';
+            const mark = res.ok ? '✅' : '❌';
             output += `${mark} Тест ${i+1}: ${res.msg}\n`;
             if (!res.ok) allOk = false;
         });
-        output += allOk ? '\nВсе тесты пройдены!' : '\nЕсть ошибки!';
+        output += allOk ? '\n✅ Все тесты пройдены!' : '\n❌ Есть ошибки!';
         this.testResultsDiv.textContent = output;
     }
 
@@ -336,6 +358,8 @@ class ColorApp {
             this.colorPicker.value = hex;
         }
         this.colorPreview.style.background = Model.rgbToHex(r, g, b);
+        
+        this.updateGradients();
     }
 
     onParamChange(model, comp, value) {
@@ -367,6 +391,78 @@ class ColorApp {
             return;
         }
         this.setFromRgb(newRgb.r, newRgb.g, newRgb.b, 'param', newRgb.clipped === true);
+    }
+
+    updateGradients() {
+        const illuminant = this.illuminantSelect.value;
+        const strategy = this.strategySelect.value;
+        const data = Model.getIlluminantData(illuminant);
+
+        const models = ['xyz', 'lab', 'hsl'];
+        const comps = {
+            xyz: ['X','Y','Z'],
+            lab: ['L','a','b'],
+            hsl: ['H','S','L']
+        };
+        const fixed = {
+            xyz: { X: this.state.xyz.X, Y: this.state.xyz.Y, Z: this.state.xyz.Z },
+            lab: { L: this.state.lab.L, a: this.state.lab.a, b: this.state.lab.b },
+            hsl: { h: this.state.hsl.h, s: this.state.hsl.s, l: this.state.hsl.l }
+        };
+
+        models.forEach(model => {
+            comps[model].forEach(comp => {
+                const key = model + '.' + comp;
+                const canvas = this.gradientCanvases[key];
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const w = canvas.width, h = canvas.height;
+                const min = parseFloat(this.sliders[key].min);
+                const max = parseFloat(this.sliders[key].max);
+                const imageData = ctx.createImageData(w, h);
+                const dataArr = imageData.data;
+                
+                for (let px = 0; px < w; px++) {
+                    const t = px / (w - 1);
+                    const val = min + t * (max - min);
+                    let rgb;
+                    
+                    if (model === 'xyz') {
+                        const x = (comp === 'X') ? val : fixed.xyz.X;
+                        const y = (comp === 'Y') ? val : fixed.xyz.Y;
+                        const z = (comp === 'Z') ? val : fixed.xyz.Z;
+                        const res = Model.xyzToRgb(x, y, z, data.xyz2rgb, strategy);
+                        rgb = { r: res.r, g: res.g, b: res.b };
+                    } else if (model === 'lab') {
+                        const L = (comp === 'L') ? val : fixed.lab.L;
+                        const a = (comp === 'a') ? val : fixed.lab.a;
+                        const b = (comp === 'b') ? val : fixed.lab.b;
+                        const xyz2 = Model.labToXyz(L, a, b, data.white);
+                        const res = Model.xyzToRgb(xyz2.X, xyz2.Y, xyz2.Z, data.xyz2rgb, strategy);
+                        rgb = { r: res.r, g: res.g, b: res.b };
+                    } else { // hsl
+                        const h = (comp === 'H') ? val : fixed.hsl.h;
+                        const s = (comp === 'S') ? val : fixed.hsl.s;
+                        const l = (comp === 'L') ? val : fixed.hsl.l;
+                        const rgb2 = Model.hslToRgb(h, s, l);
+                        rgb = { r: rgb2.r, g: rgb2.g, b: rgb2.b };
+                    }
+                    
+                    const rr = Math.min(255, Math.max(0, Math.round(rgb.r)));
+                    const gg = Math.min(255, Math.max(0, Math.round(rgb.g)));
+                    const bb = Math.min(255, Math.max(0, Math.round(rgb.b)));
+                    
+                    for (let py = 0; py < h; py++) {
+                        const idx = (py * w + px) * 4;
+                        dataArr[idx] = rr;
+                        dataArr[idx+1] = gg;
+                        dataArr[idx+2] = bb;
+                        dataArr[idx+3] = 255;
+                    }
+                }
+                ctx.putImageData(imageData, 0, 0);
+            });
+        });
     }
 }
 document.addEventListener('DOMContentLoaded', () => {
